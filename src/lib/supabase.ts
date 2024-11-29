@@ -1,53 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-export interface Database {
-  public: {
-    Tables: {
-      todos: {
-        Row: {
-          id: string;
-          created_at: string;
-          text: string;
-          content: string;
-          completed: boolean;
-          user_id: string | null;
-        };
-        Insert: {
-          id?: string;
-          created_at?: string;
-          text: string;
-          content?: string;
-          completed?: boolean;
-          user_id?: string | null;
-        };
-        Update: {
-          id?: string;
-          created_at?: string;
-          text?: string;
-          content?: string;
-          completed?: boolean;
-          user_id?: string | null;
-        };
-      };
-    };
-  };
+export function getSupabaseUrl(): string {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+  }
+  return supabaseUrl;
 }
 
-export const getSupabaseUrl = () => {
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return process.env.NEXT_PUBLIC_SUPABASE_URL;
+export function getSupabaseAnonKey(): string {
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseAnonKey) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable');
   }
-  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
-};
+  return supabaseAnonKey;
+}
 
-export const getSupabaseAnonKey = () => {
-  if (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  }
-  throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable');
-};
-
-export const supabase = createClient<Database>(
-  getSupabaseUrl(),
-  getSupabaseAnonKey()
-); 
+export const supabase = createClient(getSupabaseUrl(), getSupabaseAnonKey()); 
