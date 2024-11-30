@@ -2,6 +2,36 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TodoList from '../TodoList';
 
+// TodoItem 컴포넌트 모킹
+jest.mock('../TodoItem', () => {
+  return function MockTodoItem({ text, content, completed, onToggle, onDelete, id }: any) {
+    return (
+      <li className="flex items-center gap-4 p-4 bg-white rounded-lg shadow">
+        <input
+          type="checkbox"
+          checked={completed}
+          onChange={() => onToggle(id)}
+          aria-label={`${text} 완료 여부`}
+        />
+        <div>
+          <span className={completed ? 'line-through text-gray-500' : 'text-gray-900'}>
+            {text}
+          </span>
+          {content && (
+            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
+          )}
+        </div>
+        <button
+          onClick={() => onDelete(id)}
+          className="ml-auto px-4 py-2 text-red-600 hover:text-red-700"
+        >
+          삭제
+        </button>
+      </li>
+    );
+  };
+});
+
 describe('TodoList 컴포넌트', () => {
   const mockTodos = [
     { id: '1', text: '첫 번째 할 일', content: '<p>첫 번째 내용</p>', completed: false },
@@ -80,8 +110,8 @@ describe('TodoList 컴포넌트', () => {
         />
       );
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      await user.click(checkboxes[0]);
+      const checkbox = screen.getByLabelText(`${mockTodos[0].text} 완료 여부`);
+      await user.click(checkbox);
 
       expect(mockOnToggle).toHaveBeenCalledWith(mockTodos[0].id);
       expect(mockOnToggle).toHaveBeenCalledTimes(1);

@@ -10,11 +10,19 @@ interface Todo {
 
 interface TodoListProps {
   todos: Todo[];
-  onToggleTodo: (id: string) => void;
-  onDeleteTodo: (id: string) => void;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
-const TodoList: React.FC<TodoListProps> = ({ todos, onToggleTodo, onDeleteTodo }) => {
+const TodoList: React.FC<TodoListProps> = ({ todos, onToggle, onDelete }) => {
+  if (todos.length === 0) {
+    return (
+      <div className="text-center text-gray-500 py-4">
+        할 일이 없습니다.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       {todos.map((todo) => (
@@ -24,8 +32,8 @@ const TodoList: React.FC<TodoListProps> = ({ todos, onToggleTodo, onDeleteTodo }
           text={todo.text}
           content={todo.content}
           completed={todo.completed}
-          onToggle={onToggleTodo}
-          onDelete={onDeleteTodo}
+          onToggle={onToggle}
+          onDelete={onDelete}
         />
       ))}
     </div>

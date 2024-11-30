@@ -4,7 +4,8 @@ import AddTodo from '../AddTodo';
 
 // TipTap 에디터 모킹
 const mockSetContent = jest.fn();
-const mockGetHTML = jest.fn(() => '<p>테스트 내용</p>');
+let mockEditorContent = '';
+const mockGetHTML = jest.fn(() => mockEditorContent);
 const mockChain = jest.fn(() => ({
   focus: jest.fn(() => ({
     toggleBold: jest.fn(() => ({ run: jest.fn() })),
@@ -15,7 +16,10 @@ const mockChain = jest.fn(() => ({
 jest.mock('@tiptap/react', () => ({
   useEditor: () => ({
     commands: {
-      setContent: mockSetContent,
+      setContent: (content: string) => {
+        mockEditorContent = content;
+        mockSetContent(content);
+      },
     },
     chain: mockChain,
     getHTML: mockGetHTML,
@@ -37,6 +41,7 @@ describe('AddTodo 컴포넌트', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockEditorContent = '';
   });
 
   describe('기본 렌더링', () => {
@@ -50,14 +55,14 @@ describe('AddTodo 컴포넌트', () => {
 
     it('초기 상태에서 에디터가 숨겨져 있어야 함', () => {
       render(<AddTodo onAdd={mockOnAdd} />);
-      
+
       expect(screen.queryByTestId('editor-container')).not.toBeInTheDocument();
       expect(screen.queryByTestId('editor-content')).not.toBeInTheDocument();
     });
 
     it('입력 필드가 올바른 속성을 가져야 함', () => {
       render(<AddTodo onAdd={mockOnAdd} />);
-      
+
       const input = screen.getByPlaceholderText('할 일을 입력하세요');
       expect(input).toHaveAttribute('type', 'text');
       expect(input).toHaveClass(
@@ -74,7 +79,7 @@ describe('AddTodo 컴포넌트', () => {
 
     it('버튼들이 올바른 스타일을 가져야 함', () => {
       render(<AddTodo onAdd={mockOnAdd} />);
-      
+
       const toggleButton = screen.getByRole('button', { name: '내용 추가' });
       expect(toggleButton).toHaveClass(
         'px-4',
@@ -106,18 +111,18 @@ describe('AddTodo 컴포넌트', () => {
   describe('사용자 상호작용', () => {
     it('내용 추가 버튼 클릭 시 에디터가 토글되어야 함', async () => {
       const user = userEvent.setup();
-      const { container } = render(<AddTodo onAdd={mockOnAdd} />);
+      render(<AddTodo onAdd={mockOnAdd} />);
 
       const toggleButton = screen.getByRole('button', { name: '내용 추가' });
       
       // 에디터 표시
       await user.click(toggleButton);
-      expect(container.querySelector('.editor-content')).toBeInTheDocument();
+      expect(screen.getByTestId('editor-container')).toBeInTheDocument();
       expect(toggleButton).toHaveTextContent('내용 숨기기');
 
       // 에디터 숨김
       await user.click(toggleButton);
-      expect(container.querySelector('.editor-content')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('editor-container')).not.toBeInTheDocument();
       expect(toggleButton).toHaveTextContent('내용 추가');
     });
 
@@ -127,6 +132,24 @@ describe('AddTodo 컴포넌트', () => {
 
       // 할 일 입력
       await user.type(screen.getByPlaceholderText('할 일을 입력하세요'), '새로운 할 일');
+      
+      // 제출
+      await user.click(screen.getByRole('button', { name: '추가' }));
+      
+      expect(mockOnAdd).toHaveBeenCalledWith('새로운 할 일', '');
+      expect(mockOnAdd).toHaveBeenCalledTimes(1);
+    });
+
+    it('에디터 내용이 있을 때 제출하면 에디터 내용도 함께 전달되어야 함', async () => {
+      const user = userEvent.setup();
+      render(<AddTodo onAdd={mockOnAdd} />);
+
+      // 할 일 입력
+      await user.type(screen.getByPlaceholderText('할 일을 입력하세요'), '새로운 할 일');
+      
+      // 에디터 표시 및 내용 설정
+      await user.click(screen.getByRole('button', { name: '내용 추가' }));
+      mockEditorContent = '<p>테스트 내용</p>';
       
       // 제출
       await user.click(screen.getByRole('button', { name: '추가' }));
@@ -151,11 +174,12 @@ describe('AddTodo 컴포넌트', () => {
 
     it('제출 후 입력 필드와 에디터가 초기화되어야 함', async () => {
       const user = userEvent.setup();
-      const { container } = render(<AddTodo onAdd={mockOnAdd} />);
+      render(<AddTodo onAdd={mockOnAdd} />);
 
       // 입력 및 에디터 표시
       await user.type(screen.getByPlaceholderText('할 일을 입력하세요'), '새로운 할 일');
       await user.click(screen.getByRole('button', { name: '내용 추가' }));
+      mockEditorContent = '<p>테스트 내용</p>';
       
       // 제출
       await user.click(screen.getByRole('button', { name: '추가' }));
@@ -163,7 +187,27 @@ describe('AddTodo 컴포넌트', () => {
       // 초기화 확인
       expect(screen.getByPlaceholderText('할 일을 입력하세요')).toHaveValue('');
       expect(mockSetContent).toHaveBeenCalledWith('');
-      expect(container.querySelector('.editor-content')).not.toBeInTheDocument();
+      expect(mockEditorContent).toBe('');
+      expect(screen.queryByTestId('editor-container')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('에디터 기능', () => {
+    it('에디터 버튼이 올바르게 동작해야 함', async () => {
+      const user = userEvent.setup();
+      render(<AddTodo onAdd={mockOnAdd} />);
+
+      // 에디터 표시
+      await user.click(screen.getByRole('button', { name: '내용 추가' }));
+
+      // 굵게 버튼
+      const boldButton = screen.getByRole('button', { name: '굵게' });
+      expect(boldButton).toHaveClass('bg-gray-200');
+
+      // 기울임 버튼
+      const italicButton = screen.getByRole('button', { name: '기울임' });
+      expect(italicButton).toHaveClass('hover:bg-gray-100');
+      expect(italicButton).not.toHaveClass('bg-gray-200');
     });
   });
 }); 
