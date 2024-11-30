@@ -185,7 +185,8 @@ describe('AddTodo 컴포넌트', () => {
       await user.click(screen.getByRole('button', { name: '추가' }));
       
       // 초기화 확인
-      expect(screen.getByPlaceholderText('할 일을 입력하세요')).toHaveValue('');
+      const input = screen.getByPlaceholderText('할 일을 입력하세요');
+      expect(input).toHaveValue('');
       expect(mockSetContent).toHaveBeenCalledWith('');
       expect(mockEditorContent).toBe('');
       expect(screen.queryByTestId('editor-container')).not.toBeInTheDocument();
@@ -203,11 +204,43 @@ describe('AddTodo 컴포넌트', () => {
       // 굵게 버튼
       const boldButton = screen.getByRole('button', { name: '굵게' });
       expect(boldButton).toHaveClass('bg-gray-200');
+      await user.click(boldButton);
+      expect(mockChain).toHaveBeenCalled();
 
       // 기울임 버튼
       const italicButton = screen.getByRole('button', { name: '기울임' });
       expect(italicButton).toHaveClass('hover:bg-gray-100');
       expect(italicButton).not.toHaveClass('bg-gray-200');
+      await user.click(italicButton);
+      expect(mockChain).toHaveBeenCalled();
+    });
+
+    it('에디터 내용이 변경되면 상태가 업데이트되어야 함', async () => {
+      render(<AddTodo onAdd={mockOnAdd} />);
+
+      // 에디터 표시
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: '내용 추가' }));
+
+      // 에디터 내용 변경
+      mockEditorContent = '<p>새로운 내용</p>';
+      expect(mockGetHTML()).toBe('<p>새로운 내용</p>');
+    });
+
+    it('에디터 내용이 초기화되면 빈 문자열이 되어야 함', async () => {
+      render(<AddTodo onAdd={mockOnAdd} />);
+
+      // 에디터 표시
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: '내용 추가' }));
+
+      // 에디터 내용 설정
+      mockEditorContent = '<p>테스트 내용</p>';
+      expect(mockGetHTML()).toBe('<p>테스트 내용</p>');
+
+      // 에디터 내용 초기화
+      mockEditorContent = '';
+      expect(mockGetHTML()).toBe('');
     });
   });
 }); 

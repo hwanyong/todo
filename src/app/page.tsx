@@ -14,59 +14,74 @@ interface Todo {
 
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchTodos();
-    
-    const subscription = supabase
-      .channel('todos')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => {
-        fetchTodos();
-      })
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    setupRealtimeSubscription();
   }, []);
 
   const fetchTodos = async () => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('todos')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        throw error;
+        console.error('Error fetching todos:', error);
+        return;
       }
 
       setTodos(data || []);
     } catch (error) {
       console.error('Error fetching todos:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const addTodo = async (text: string, content: string) => {
+  const setupRealtimeSubscription = () => {
+    const channel = supabase
+      .channel('todos')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'todos' },
+        (payload) => {
+          console.log('Change received!', payload);
+          fetchTodos();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  };
+
+  const handleAddTodo = async (text: string, content: string) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('todos')
-        .insert([{ text, content }]);
+        .insert([{ text, content, completed: false }])
+        .select()
+        .single();
 
       if (error) {
-        throw error;
+        console.error('Error adding todo:', error);
+        return;
       }
+
+      setTodos([data, ...todos]);
     } catch (error) {
       console.error('Error adding todo:', error);
     }
   };
 
-  const toggleTodo = async (id: string) => {
+  const handleToggleTodo = async (id: string) => {
     try {
-      const todo = todos.find(t => t.id === id);
+      const todo = todos.find((t) => t.id === id);
       if (!todo) return;
 
       const { error } = await supabase
@@ -75,14 +90,21 @@ export default function Home() {
         .eq('id', id);
 
       if (error) {
-        throw error;
+        console.error('Error toggling todo:', error);
+        return;
       }
+
+      setTodos(
+        todos.map((t) =>
+          t.id === id ? { ...t, completed: !t.completed } : t
+        )
+      );
     } catch (error) {
       console.error('Error toggling todo:', error);
     }
   };
 
-  const deleteTodo = async (id: string) => {
+  const handleDeleteTodo = async (id: string) => {
     try {
       const { error } = await supabase
         .from('todos')
@@ -90,39 +112,29 @@ export default function Home() {
         .eq('id', id);
 
       if (error) {
-        throw error;
+        console.error('Error deleting todo:', error);
+        return;
       }
+
+      setTodos(todos.filter((t) => t.id !== id));
     } catch (error) {
       console.error('Error deleting todo:', error);
     }
   };
 
   return (
-    <main className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-3xl mx-auto px-4">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-          할 일 목록
-        </h1>
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <AddTodo onAdd={addTodo} />
-          {loading ? (
-            <div className="text-center py-4">
-              <p className="text-gray-500">로딩 중...</p>
-            </div>
-          ) : (
-            <>
-              <TodoList
-                todos={todos}
-                onToggleTodo={toggleTodo}
-                onDeleteTodo={deleteTodo}
-              />
-              {todos.length === 0 && (
-                <p className="text-gray-500 text-center">할 일이 없습니다.</p>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+    <main className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">할 일 목록</h1>
+      <AddTodo onAdd={handleAddTodo} />
+      {isLoading ? (
+        <div className="text-center py-4">로딩 중...</div>
+      ) : (
+        <TodoList
+          todos={todos}
+          onToggle={handleToggleTodo}
+          onDelete={handleDeleteTodo}
+        />
+      )}
     </main>
   );
 }
