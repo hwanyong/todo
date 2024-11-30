@@ -19,14 +19,11 @@ const config = {
     '!src/**/*.test.{js,jsx,ts,tsx}',
   ],
   testMatch: [
-    '**/__tests__/**/*.unit.test.[jt]s?(x)',
     '**/__tests__/**/*.(spec|test).[jt]s?(x)',
-    '!**/supabase.test.[jt]s?(x)',
   ],
   testPathIgnorePatterns: [
     '/node_modules/',
     '/.next/',
-    '/supabase.test.[jt]s?(x)',
   ],
 };
 

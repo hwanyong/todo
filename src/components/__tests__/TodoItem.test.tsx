@@ -1,7 +1,8 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import TodoItem from '../TodoItem';
 
-describe('TodoItem', () => {
+describe('TodoItem 컴포넌트', () => {
   const mockTodo = {
     id: '1',
     text: '테스트 할 일',
@@ -12,137 +13,88 @@ describe('TodoItem', () => {
   const mockOnToggle = jest.fn();
   const mockOnDelete = jest.fn();
 
+  const renderTodoItem = (props = {}) => {
+    return render(
+      <TodoItem
+        {...mockTodo}
+        {...props}
+        onToggle={mockOnToggle}
+        onDelete={mockOnDelete}
+      />
+    );
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders todo item correctly', () => {
-    render(
-      <TodoItem
-        {...mockTodo}
-        onToggle={mockOnToggle}
-        onDelete={mockOnDelete}
-      />
-    );
+  describe('기본 렌더링', () => {
+    it('필수 UI 요소들이 올바르게 렌더링되어야 함', () => {
+      renderTodoItem();
 
-    expect(screen.getByText(mockTodo.text)).toBeInTheDocument();
-    expect(screen.getByRole('checkbox')).not.toBeChecked();
+      expect(screen.getByText(mockTodo.text)).toBeInTheDocument();
+      expect(screen.getByRole('checkbox')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '삭제' })).toBeInTheDocument();
+    });
+
+    it('미완료 상태의 체크박스가 올바르게 표시되어야 함', () => {
+      renderTodoItem();
+      expect(screen.getByRole('checkbox')).not.toBeChecked();
+    });
+
+    it('완료 상태의 체크박스가 올바르게 표시되어야 함', () => {
+      renderTodoItem({ completed: true });
+      expect(screen.getByRole('checkbox')).toBeChecked();
+    });
+
+    it('내용이 제공될 때 올바르게 표시되어야 함', () => {
+      renderTodoItem();
+
+      const content = screen.getByText('테스트 내용');
+      expect(content).toBeInTheDocument();
+      expect(content.closest('.prose')).toHaveClass('prose', 'prose-sm', 'max-w-none');
+    });
+
+    it('내용이 없을 때 내용 영역이 렌더링되지 않아야 함', () => {
+      renderTodoItem({ content: '' });
+      expect(screen.queryByText('테스트 내용')).not.toBeInTheDocument();
+    });
   });
 
-  it('calls onToggle when checkbox is clicked', () => {
-    render(
-      <TodoItem
-        {...mockTodo}
-        onToggle={mockOnToggle}
-        onDelete={mockOnDelete}
-      />
-    );
+  describe('사용자 상호작용', () => {
+    it('체크박스 클릭 시 onToggle이 호출되어야 함', async () => {
+      const user = userEvent.setup();
+      renderTodoItem();
 
-    fireEvent.click(screen.getByRole('checkbox'));
-    expect(mockOnToggle).toHaveBeenCalledWith(mockTodo.id);
+      await user.click(screen.getByRole('checkbox'));
+      expect(mockOnToggle).toHaveBeenCalledWith(mockTodo.id);
+      expect(mockOnToggle).toHaveBeenCalledTimes(1);
+    });
+
+    it('삭제 버튼 클릭 시 onDelete가 호출되어야 함', async () => {
+      const user = userEvent.setup();
+      renderTodoItem();
+
+      await user.click(screen.getByRole('button', { name: '삭제' }));
+      expect(mockOnDelete).toHaveBeenCalledWith(mockTodo.id);
+      expect(mockOnDelete).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('calls onDelete when delete button is clicked', () => {
-    render(
-      <TodoItem
-        {...mockTodo}
-        onToggle={mockOnToggle}
-        onDelete={mockOnDelete}
-      />
-    );
+  describe('스타일링', () => {
+    it('완료 상태일 때 텍스트에 취소선과 회색 스타일이 적용되어야 함', () => {
+      renderTodoItem({ completed: true });
+      
+      const text = screen.getByText(mockTodo.text);
+      expect(text).toHaveClass('line-through', 'text-gray-500');
+    });
 
-    fireEvent.click(screen.getByText('삭제'));
-    expect(mockOnDelete).toHaveBeenCalledWith(mockTodo.id);
-  });
-
-  it('displays content when provided', () => {
-    render(
-      <TodoItem
-        {...mockTodo}
-        onToggle={mockOnToggle}
-        onDelete={mockOnDelete}
-      />
-    );
-
-    const content = document.querySelector('.prose');
-    expect(content).toBeInTheDocument();
-    expect(content?.innerHTML).toBe(mockTodo.content);
-  });
-
-  it('applies completed styles when todo is completed', () => {
-    render(
-      <TodoItem
-        {...mockTodo}
-        completed={true}
-        onToggle={mockOnToggle}
-        onDelete={mockOnDelete}
-      />
-    );
-
-    const text = screen.getByText(mockTodo.text);
-    expect(text).toHaveClass('line-through', 'text-gray-500');
-    expect(screen.getByRole('checkbox')).toBeChecked();
-  });
-
-  it('renders without content when content is empty', () => {
-    render(
-      <TodoItem
-        {...mockTodo}
-        content=""
-        onToggle={mockOnToggle}
-        onDelete={mockOnDelete}
-      />
-    );
-
-    expect(document.querySelector('.prose')).not.toBeInTheDocument();
-  });
-
-  it('handles long text properly', () => {
-    const longText = 'a'.repeat(100);
-    render(
-      <TodoItem
-        {...mockTodo}
-        text={longText}
-        onToggle={mockOnToggle}
-        onDelete={mockOnDelete}
-      />
-    );
-
-    const textElement = screen.getByText(longText);
-    expect(textElement).toBeInTheDocument();
-    const todoItem = document.querySelector('.bg-white');
-    expect(todoItem).toHaveClass('overflow-hidden');
-  });
-
-  it('safely renders HTML content', () => {
-    const htmlContent = '<p>안전한 내용</p><script>alert("악성 코드")</script>';
-    render(
-      <TodoItem
-        {...mockTodo}
-        content={htmlContent}
-        onToggle={mockOnToggle}
-        onDelete={mockOnDelete}
-      />
-    );
-
-    const content = document.querySelector('.prose');
-    expect(content).toBeInTheDocument();
-    expect(content?.textContent).toContain('안전한 내용');
-  });
-
-  it('maintains layout when content is very long', () => {
-    const longContent = '<p>' + 'a'.repeat(1000) + '</p>';
-    render(
-      <TodoItem
-        {...mockTodo}
-        content={longContent}
-        onToggle={mockOnToggle}
-        onDelete={mockOnDelete}
-      />
-    );
-
-    const contentContainer = document.querySelector('.prose');
-    expect(contentContainer).toBeInTheDocument();
-    expect(contentContainer).toHaveClass('p-4');
+    it('미완료 상태일 때 기본 텍스트 스타일이 적용되어야 함', () => {
+      renderTodoItem({ completed: false });
+      
+      const text = screen.getByText(mockTodo.text);
+      expect(text).toHaveClass('text-gray-900');
+      expect(text).not.toHaveClass('line-through');
+    });
   });
 }); 

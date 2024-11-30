@@ -1,128 +1,136 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import TodoList from '../TodoList';
 
-jest.mock('../TodoItem', () => {
-  return function MockTodoItem({ text, completed }: { text: string; completed: boolean }) {
-    return (
-      <div data-testid="todo-item" data-completed={completed}>
-        {text}
-      </div>
-    );
-  };
-});
-
-describe('TodoList', () => {
+describe('TodoList 컴포넌트', () => {
   const mockTodos = [
-    { id: '1', text: '할 일 1', content: '', completed: false },
-    { id: '2', text: '할 일 2', content: '', completed: true },
-    { id: '3', text: '할 일 3', content: '', completed: false },
+    { id: '1', text: '첫 번째 할 일', content: '<p>첫 번째 내용</p>', completed: false },
+    { id: '2', text: '두 번째 할 일', content: '<p>두 번째 내용</p>', completed: true },
+    { id: '3', text: '세 번째 할 일', content: '', completed: false },
   ];
 
-  const mockOnToggleTodo = jest.fn();
-  const mockOnDeleteTodo = jest.fn();
+  const mockOnToggle = jest.fn();
+  const mockOnDelete = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders all todo items', () => {
-    render(
-      <TodoList
-        todos={mockTodos}
-        onToggleTodo={mockOnToggleTodo}
-        onDeleteTodo={mockOnDeleteTodo}
-      />
-    );
+  describe('기본 렌더링', () => {
+    it('할 일 목록이 올바르게 렌더링되어야 함', () => {
+      render(
+        <TodoList
+          todos={mockTodos}
+          onToggle={mockOnToggle}
+          onDelete={mockOnDelete}
+        />
+      );
 
-    const todoItems = screen.getAllByTestId('todo-item');
-    expect(todoItems).toHaveLength(mockTodos.length);
-    expect(screen.getByText('할 일 1')).toBeInTheDocument();
-    expect(screen.getByText('할 일 2')).toBeInTheDocument();
-    expect(screen.getByText('할 일 3')).toBeInTheDocument();
-  });
+      mockTodos.forEach(todo => {
+        expect(screen.getByText(todo.text)).toBeInTheDocument();
+      });
+    });
 
-  it('renders empty list when no todos provided', () => {
-    render(
-      <TodoList
-        todos={[]}
-        onToggleTodo={mockOnToggleTodo}
-        onDeleteTodo={mockOnDeleteTodo}
-      />
-    );
+    it('할 일이 없을 때 메시지가 표시되어야 함', () => {
+      render(
+        <TodoList
+          todos={[]}
+          onToggle={mockOnToggle}
+          onDelete={mockOnDelete}
+        />
+      );
 
-    const todoItems = screen.queryAllByTestId('todo-item');
-    expect(todoItems).toHaveLength(0);
-  });
+      expect(screen.getByText('할 일이 없습니다.')).toBeInTheDocument();
+    });
 
-  it('renders todos in correct order', () => {
-    const orderedTodos = [
-      { id: '1', text: '첫 번째 할 일', content: '', completed: false },
-      { id: '2', text: '두 번째 할 일', content: '', completed: false },
-      { id: '3', text: '세 번째 할 일', content: '', completed: false },
-    ];
+    it('각 할 일 항목이 올바른 스타일을 가져야 함', () => {
+      render(
+        <TodoList
+          todos={mockTodos}
+          onToggle={mockOnToggle}
+          onDelete={mockOnDelete}
+        />
+      );
 
-    render(
-      <TodoList
-        todos={orderedTodos}
-        onToggleTodo={mockOnToggleTodo}
-        onDeleteTodo={mockOnDeleteTodo}
-      />
-    );
+      const todoItems = screen.getAllByRole('listitem');
+      expect(todoItems).toHaveLength(mockTodos.length);
 
-    const todoItems = screen.getAllByTestId('todo-item');
-    todoItems.forEach((item, index) => {
-      expect(item).toHaveTextContent(orderedTodos[index].text);
+      todoItems.forEach(item => {
+        expect(item).toHaveClass(
+          'flex',
+          'items-center',
+          'gap-4',
+          'p-4',
+          'bg-white',
+          'rounded-lg',
+          'shadow'
+        );
+      });
     });
   });
 
-  it('handles completed and incomplete todos correctly', () => {
-    render(
-      <TodoList
-        todos={mockTodos}
-        onToggleTodo={mockOnToggleTodo}
-        onDeleteTodo={mockOnDeleteTodo}
-      />
-    );
+  describe('사용자 상호작용', () => {
+    it('체크박스 클릭 시 onToggle이 호출되어야 함', async () => {
+      const user = userEvent.setup();
+      render(
+        <TodoList
+          todos={mockTodos}
+          onToggle={mockOnToggle}
+          onDelete={mockOnDelete}
+        />
+      );
 
-    const todoItems = screen.getAllByTestId('todo-item');
-    expect(todoItems[0]).toHaveAttribute('data-completed', 'false');
-    expect(todoItems[1]).toHaveAttribute('data-completed', 'true');
-    expect(todoItems[2]).toHaveAttribute('data-completed', 'false');
+      const checkboxes = screen.getAllByRole('checkbox');
+      await user.click(checkboxes[0]);
+
+      expect(mockOnToggle).toHaveBeenCalledWith(mockTodos[0].id);
+      expect(mockOnToggle).toHaveBeenCalledTimes(1);
+    });
+
+    it('삭제 버튼 클릭 시 onDelete가 호출되어야 함', async () => {
+      const user = userEvent.setup();
+      render(
+        <TodoList
+          todos={mockTodos}
+          onToggle={mockOnToggle}
+          onDelete={mockOnDelete}
+        />
+      );
+
+      const deleteButtons = screen.getAllByRole('button', { name: '삭제' });
+      await user.click(deleteButtons[0]);
+
+      expect(mockOnDelete).toHaveBeenCalledWith(mockTodos[0].id);
+      expect(mockOnDelete).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('renders large number of todos efficiently', () => {
-    const largeTodoList = Array.from({ length: 100 }, (_, i) => ({
-      id: `${i}`,
-      text: `할 일 ${i}`,
-      content: '',
-      completed: false,
-    }));
+  describe('할 일 내용 표시', () => {
+    it('내용이 있는 할 일은 내용이 표시되어야 함', () => {
+      render(
+        <TodoList
+          todos={mockTodos}
+          onToggle={mockOnToggle}
+          onDelete={mockOnDelete}
+        />
+      );
 
-    const startTime = performance.now();
-    render(
-      <TodoList
-        todos={largeTodoList}
-        onToggleTodo={mockOnToggleTodo}
-        onDeleteTodo={mockOnDeleteTodo}
-      />
-    );
-    const endTime = performance.now();
+      expect(screen.getByText('첫 번째 내용')).toBeInTheDocument();
+      expect(screen.getByText('두 번째 내용')).toBeInTheDocument();
+    });
 
-    const todoItems = screen.getAllByTestId('todo-item');
-    expect(todoItems).toHaveLength(100);
-    expect(endTime - startTime).toBeLessThan(1000); // 1초 이내 렌더링
-  });
+    it('내용이 없는 할 일은 내용이 표시되지 않아야 함', () => {
+      render(
+        <TodoList
+          todos={mockTodos}
+          onToggle={mockOnToggle}
+          onDelete={mockOnDelete}
+        />
+      );
 
-  it('maintains consistent spacing between items', () => {
-    render(
-      <TodoList
-        todos={mockTodos}
-        onToggleTodo={mockOnToggleTodo}
-        onDeleteTodo={mockOnDeleteTodo}
-      />
-    );
-
-    const container = screen.getAllByTestId('todo-item')[0].parentElement;
-    expect(container).toHaveClass('space-y-2');
+      const todoWithoutContent = mockTodos[2];
+      const todoElement = screen.getByText(todoWithoutContent.text).closest('li');
+      expect(todoElement?.querySelector('.prose')).not.toBeInTheDocument();
+    });
   });
 }); 

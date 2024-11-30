@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
 
 // Supabase 환경 변수 설정
-const supabaseUrl = '----------';
-const supabaseServiceRoleKey = '----------';
+const supabaseUrl = '------';
+const supabaseServiceRoleKey = '-------';
 
 describe('Supabase 클라이언트 테스트', () => {
   let supabase: ReturnType<typeof createClient<Database>>;
